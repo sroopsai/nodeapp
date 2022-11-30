@@ -1,0 +1,78 @@
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodeapp
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: nodeapp
+
+  minReadySeconds: 20
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+        maxSurge: 13
+        maxUnavailable: 7
+
+  template:
+    metadata:
+      labels:
+        app: nodeapp
+    spec:
+      containers:
+      - name: nodeapp
+        image: docker.io/roopsai1083/node-app
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 3000
+        readinessProbe:
+          httpGet:
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          
+
+---
+# Service
+apiVersion: v1
+kind: Service
+
+metadata:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-resource-group: elastisystestrg
+  name: nodeapp-service
+spec:
+  selector:
+    app: nodeapp
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: LoadBalancer
+  loadBalancerIP: 20.91.211.108
+
+
+# Autoscaler (Horizontal)
+--- 
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: nodeapp-hpa
+spec:
+  maxReplicas: 15 # define max replica count
+  minReplicas: 7  # define min replica count
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nodeapp
+  targetCPUUtilizationPercentage: 50 # target CPU utilization
+
+
+
+
+
